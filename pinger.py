@@ -1,57 +1,71 @@
 import subprocess
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import Label, Button, messagebox
 import threading
 import re
 
-# Add comma seprated IP's to be pinged in this array 
-data = ['8.8.8.8']
-
-def ping_ip(ip, text_widget):
+# Add IP addresses and hostnames to be pinged along with their labels
+data = [
+    {'ip': '8.8.8.8', 'hostname': 'Google'}, 
+]
+def ping_ip(ip, label, rt_label):
     try:
         # Run the ping command
         result = subprocess.run(['ping', '-n', '1', ip], capture_output=True, text=True, timeout=5)
         match = re.search(r"time=(\d+)ms", result.stdout)
         if match:
-            round_trip_time_str = match.group(0)  
+            round_trip_time_str = match.group(1) + "ms"  
         else:
             round_trip_time_str = 'Round-trip time not found in the output.'
         # Extract time information
         if result.returncode == 0:
-            response_data = f"IP: {ip}\n{round_trip_time_str}\n"
-            response_status = 'Status: Online\n'
-            text_widget.tag_config('status_tag', foreground='green')
+            label.config(bg='green')  # Set label background to green for online
         else:
-            response_data = f"IP: {ip}\n{result.stderr}\n"
-            response_status = 'Status: Offline\n'
-            text_widget.tag_config('status_tag', foreground='red')
-
+            label.config(bg='red')    # Set label background to red for offline
     except subprocess.TimeoutExpired:
-        response_data = f"IP: {ip}\nStatus: Timeout\n"
+        round_trip_time_str = 'Timeout'
+        label.config(bg='yellow')     # Set label background to yellow for timeout
+    # Update round-trip time label
+    rt_label.config(text=f"Time: {round_trip_time_str}")
 
-    # Update the text widget with the formatted data
-    text_widget.delete('1.0', tk.END)
-    text_widget.insert(tk.END, response_data)
-    text_widget.insert(tk.END, response_status, 'status_tag')
-    text_widget.yview(tk.END)  # Auto-scroll to the end
+def tracert_ip(ip):
+    try:
+        # Run the tracert command
+        result = subprocess.run(['tracert', '-d', ip], capture_output=True, text=True, timeout=90)
+        tracert_output = result.stdout
+        # Show the tracert output in a message box
+        messagebox.showinfo("Tracert Output", tracert_output)
+    except subprocess.TimeoutExpired:
+        messagebox.showerror("Error", "Tracert operation timed out.")
 
 def ping_ips():
-    for ip, text_widget in zip(data, text_widgets):
-        threading.Thread(target=ping_ip, args=(ip, text_widget)).start()
-    root.after(1000, ping_ips)  # Repeat every 1000 milliseconds (1 seconds)
+    for entry in data:
+        ip = entry['ip']
+        label = entry['label']
+        rt_label = entry['rt_label']
+        threading.Thread(target=ping_ip, args=(ip, label, rt_label)).start()
+    root.after(1000, ping_ips)  # Repeat every 1000 milliseconds (1 second)
 
 # Create the main window
 root = tk.Tk()
-root.title("Server Status Report - Powered by Smile :)")
+root.title("Server Status Report - Powered by TechClone")
 
-# Create a list to store text widgets
-text_widgets = []
+# Create a list to store labels and round-trip time labels
+labels = []
 
-# Create a text widget for each IP and arrange them into rows of three
-for i, ip in enumerate(data, start=1):
-    ip_text = scrolledtext.ScrolledText(root, width=50, height=6)
-    ip_text.grid(row=(i-1)//2, column=(i-1)%2, padx=5, pady=5)  # Grid layout
-    text_widgets.append(ip_text)
+# Create a label for each IP and arrange them into rows
+for i, entry in enumerate(data, start=1):
+    hostname = entry['hostname']
+    ip = entry['ip']
+    label = Label(root, text=f"{hostname} ({ip})", width=25, height=3)
+    label.grid(row=i, column=0, padx=5, pady=5)  # Grid layout
+    rt_label = Label(root, text="Time: ", width=40, height=3)
+    rt_label.grid(row=i, column=1, padx=5, pady=5)  # Grid layout
+    labels.append(label)
+    entry['label'] = label
+    entry['rt_label'] = rt_label
+    tracert_button = Button(root, text="Tracert", command=lambda ip=ip: tracert_ip(ip))
+    tracert_button.grid(row=i, column=2, padx=5, pady=5)  # Grid layout
 
 # Start pinging IPs automatically
 ping_ips()
