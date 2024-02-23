@@ -19,9 +19,9 @@ def ping_ip(ip, label, rt_label):
             round_trip_time_str = 'Round-trip time not found in the output.'
         # Extract time information
         if result.returncode == 0:
-            label.config(bg='green')  # Set label background to green for online
+            label.config(bg='green',foreground='white')  # Set label background to green for online
         else:
-            label.config(bg='red')    # Set label background to red for offline
+            label.config(bg='red',foreground='white')    # Set label background to red for offline
     except subprocess.TimeoutExpired:
         round_trip_time_str = 'Timeout'
         label.config(bg='yellow')     # Set label background to yellow for timeout
